@@ -7,10 +7,11 @@
  * @see https://img.ly/docs/cesdk/js/getting-started/
  */
 
-import CreativeEditorSDK from '@cesdk/cesdk-js';
+import type CreativeEditorSDK from '@cesdk/cesdk-js';
 
 import {
   BlurAssetSource,
+  ImageColorsAssetSource,
   ColorPaletteAssetSource,
   CropPresetsAssetSource,
   EffectsAssetSource,
@@ -24,11 +25,11 @@ import {
 } from '@cesdk/cesdk-js/plugins';
 
 // Configuration and plugins
-import { PhotoEditorConfig } from './config/plugin';
+import { PhotoEditorConfig } from '../../photo-editor/plugin';
 import { setupBackgroundRemovalPlugin } from './plugins/background-removal';
 
 // Re-export for external use
-export { PhotoEditorConfig } from './config/plugin';
+export { PhotoEditorConfig } from '../../photo-editor/plugin';
 export { setupBackgroundRemovalPlugin } from './plugins/background-removal';
 
 /**
@@ -74,6 +75,7 @@ export async function initPhotoEditor(cesdk: CreativeEditorSDK) {
 
   // Asset source plugins provide built-in asset libraries
   await cesdk.addPlugin(new BlurAssetSource());
+  await cesdk.addPlugin(new ImageColorsAssetSource());
   await cesdk.addPlugin(new ColorPaletteAssetSource());
   await cesdk.addPlugin(new CropPresetsAssetSource());
   await cesdk.addPlugin(new EffectsAssetSource());
