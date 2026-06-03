@@ -1,48 +1,13 @@
 /**
- * CE.SDK Photo Editor Starterkit - Main Entry Point
- *
- * This file initializes the photo editor.
- * For customization options, see the `./imgly/` folder.
- *
- * @see https://img.ly/docs/cesdk/js/getting-started/
+ * MultiCrop entry point. Wires the app shell to the renderer + crop editor.
+ * (Filled in across tasks; this stub is replaced in Task 9.)
  */
 
-import CreativeEditorSDK from '@cesdk/cesdk-js';
+const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement;
+const fileInput = document.getElementById('file-input') as HTMLInputElement;
 
-import { initPhotoEditor } from './imgly';
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-const config = {
-  userId: 'starterkit-photo-editor-user',
-
-  // IMG.LY CDN (for quick testing only, NOT recommended for production)
-
-  // Local assets for development
-
-};
-
-// ============================================================================
-// Initialize Photo Editor
-// ============================================================================
-
-CreativeEditorSDK.create('#cesdk_container', config)
-  .then(async (cesdk) => {
-    // Debug access (remove in production)
-    (window as any).cesdk = cesdk;
-
-    await initPhotoEditor(cesdk);
-    // ============================================================================
-    // Scene Loading
-    // ============================================================================
-
-    await cesdk.loadFromURL(
-      'https://cdn.img.ly/packages/imgly/plugin-marketing-asset-source-web/1.0.0/assets/templates/16-9-fashion-ad/scene.scene'
-    );
-  })
-  .catch((error) => {
-    // eslint-disable-next-line no-console
-    console.error('Failed to initialize CE.SDK:', error);
-  });
+uploadBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  // eslint-disable-next-line no-console
+  console.log('Selected file:', fileInput.files?.[0]?.name);
+});
