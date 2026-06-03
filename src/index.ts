@@ -83,6 +83,9 @@ async function handleGenerate(): Promise<void> {
       presets,
       focal
     );
+    // Revoke the previous run's thumbnail object URLs before replacing them,
+    // so re-generating doesn't leak blobs.
+    for (const old of state.results) URL.revokeObjectURL(old.thumbnailUrl);
     state.results = results;
     renderGallery(results, handleEdit);
   } finally {
