@@ -22,12 +22,16 @@ function fileNameFor(result: CropResult): string {
 
 /** Re-render all results, zip them, and trigger a browser download. */
 export async function downloadAll(results: CropResult[]): Promise<void> {
-  const files = await Promise.all(
-    results.map(async (result) => ({
+  // Render sequentially: renderScene loads each scene into the SHARED headless
+  // engine and exports it, so concurrent calls (Promise.all) would race on the
+  // single engine's scene state and deadlock. One at a time is required.
+  const files: { name: string; input: Blob }[] = [];
+  for (const result of results) {
+    files.push({
       name: fileNameFor(result),
       input: await renderScene(result.sceneString)
-    }))
-  );
+    });
+  }
 
   const zipBlob = await downloadZip(files).blob();
   const url = URL.createObjectURL(zipBlob);
