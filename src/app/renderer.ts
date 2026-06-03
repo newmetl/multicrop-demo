@@ -8,6 +8,10 @@
  */
 
 import CreativeEngine from '@cesdk/engine';
+import { buildPresetScene } from './scene';
+import { computeFocalPoint, type FocalPoint } from './saliency';
+import type { Preset } from './presets';
+import type { CropResult } from './state';
 
 let enginePromise: Promise<CreativeEngine> | null = null;
 
@@ -32,4 +36,49 @@ export async function renderScene(sceneString: string): Promise<Blob> {
   const page = engine.block.findByType('page')[0];
   if (page == null) throw new Error('renderScene: scene has no page');
   return engine.block.export(page, { mimeType: 'image/png' });
+}
+
+/** Compute the focal point for the source image once (cached in saliency.ts). */
+export async function focalPointFor(imageURI: string): Promise<FocalPoint | null> {
+  const engine = await getRenderEngine();
+  // saliency only uses the engine for buffer:// URIs; object URLs pass through.
+  return computeFocalPoint(imageURI, engine as never);
+}
+
+/**
+ * Build a scene + render a thumbnail for each preset, in order. Returns one
+ * CropResult per preset. The source image must be an object URL kept alive for
+ * the session (so the scene strings stay loadable by the editor).
+ */
+export async function generateCrops(
+  imageURI: string,
+  imageWidth: number,
+  imageHeight: number,
+  presets: Preset[],
+  focalPoint: FocalPoint | null
+): Promise<CropResult[]> {
+  const engine = await getRenderEngine();
+  const results: CropResult[] = [];
+
+  for (const preset of presets) {
+    const { sceneString } = await buildPresetScene(
+      engine,
+      imageURI,
+      imageWidth,
+      imageHeight,
+      preset,
+      focalPoint
+    );
+    const blob = await renderScene(sceneString);
+    results.push({
+      id: preset.id,
+      presetLabel: preset.label,
+      width: preset.width,
+      height: preset.height,
+      sceneString,
+      thumbnailUrl: URL.createObjectURL(blob)
+    });
+  }
+
+  return results;
 }
