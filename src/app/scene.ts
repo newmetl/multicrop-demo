@@ -38,14 +38,17 @@ export async function buildPresetScene(
   preset: PresetSize,
   focalPoint: FocalPoint | null
 ): Promise<{ sceneString: string; imageBlock: number }> {
-  engine.scene.create();
-  const stack = engine.block.findByType('//ly.img.ubq/stack')[0];
+  // A fresh headless scene contains only the scene + camera (no stack block,
+  // and stacks can't be created directly), so the page is appended straight to
+  // the scene block, which `create()` returns. `engine.scene.getPages()` still
+  // recognizes a page parented to the scene this way.
+  const scene = engine.scene.create();
 
   const page = engine.block.create('//ly.img.ubq/page');
   engine.block.setWidth(page, preset.width);
   engine.block.setHeight(page, preset.height);
   engine.block.setClipped(page, true);
-  engine.block.appendChild(stack, page);
+  engine.block.appendChild(scene, page);
 
   const imageBlock = engine.block.create('//ly.img.ubq/graphic');
   engine.block.setShape(
