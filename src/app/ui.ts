@@ -109,3 +109,9 @@ export function updateTile(result: CropResult): void {
 export function setUploadName(name: string): void {
   $('upload-name').textContent = name;
 }
+
+/** Empty the gallery and hide the results panel (e.g. on a new upload). */
+export function clearResults(): void {
+  $('gallery').innerHTML = '';
+  $('results-panel').classList.add('hidden');
+}

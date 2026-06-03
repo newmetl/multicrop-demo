@@ -28,7 +28,7 @@ interface PresetSize {
  * built scene loaded in `engine` (callers that only want the string can ignore
  * that; render paths re-load anyway).
  *
- * @returns the serialized scene string and the id of the croppable image block.
+ * @returns the serialized scene string for the built single-page scene.
  */
 export async function buildPresetScene(
   engine: CreativeEngine,
@@ -37,7 +37,7 @@ export async function buildPresetScene(
   imageHeight: number,
   preset: PresetSize,
   focalPoint: FocalPoint | null
-): Promise<{ sceneString: string; imageBlock: number }> {
+): Promise<string> {
   // A fresh headless scene contains only the scene + camera (no stack block,
   // and stacks can't be created directly), so the page is appended straight to
   // the scene block, which `create()` returns. `engine.scene.getPages()` still
@@ -77,8 +77,7 @@ export async function buildPresetScene(
     focalPoint
   );
 
-  const sceneString = await engine.scene.saveToString();
-  return { sceneString, imageBlock };
+  return engine.scene.saveToString();
 }
 
 /**

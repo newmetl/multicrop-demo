@@ -25,17 +25,38 @@ export function getRenderEngine(): Promise<CreativeEngine> {
   return enginePromise;
 }
 
+// The headless engine holds a single scene at a time: each operation does
+// loadFromString/saveToString + export, mutating shared state. Concurrent
+// operations (e.g. a Save's re-render overlapping a Download-all, or two
+// Download-all clicks) would interleave loadFromString calls and race — the
+// same hazard the per-item sequential loops avoid, but across operations. This
+// promise-chain serializes every engine-touching critical section so they can
+// never overlap, regardless of how the UI is clicked.
+let engineLock: Promise<unknown> = Promise.resolve();
+
+function withEngine<T>(critical: () => Promise<T>): Promise<T> {
+  const run = engineLock.then(critical, critical);
+  // Keep the chain alive even if a critical section throws.
+  engineLock = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
 /**
  * Render a serialized single-page scene to a PNG Blob at the page's native
  * pixel size. Loads the scene into the headless engine, exports its first
- * page, and returns the blob.
+ * page, and returns the blob. Serialized against all other engine operations.
  */
-export async function renderScene(sceneString: string): Promise<Blob> {
-  const engine = await getRenderEngine();
-  await engine.scene.loadFromString(sceneString);
-  const page = engine.block.findByType('page')[0];
-  if (page == null) throw new Error('renderScene: scene has no page');
-  return engine.block.export(page, { mimeType: 'image/png' });
+export function renderScene(sceneString: string): Promise<Blob> {
+  return withEngine(async () => {
+    const engine = await getRenderEngine();
+    await engine.scene.loadFromString(sceneString);
+    const page = engine.block.findByType('page')[0];
+    if (page == null) throw new Error('renderScene: scene has no page');
+    return engine.block.export(page, { mimeType: 'image/png' });
+  });
 }
 
 /** Compute the focal point for the source image once (cached in saliency.ts). */
@@ -61,13 +82,18 @@ export async function generateCrops(
   const results: CropResult[] = [];
 
   for (const preset of presets) {
-    const { sceneString } = await buildPresetScene(
-      engine,
-      imageURI,
-      imageWidth,
-      imageHeight,
-      preset,
-      focalPoint
+    // Building mutates the shared engine's scene, so it runs inside the same
+    // lock as renderScene (which is itself serialized). Each is a self-contained
+    // critical section, so interleaving at their boundaries is safe.
+    const sceneString = await withEngine(() =>
+      buildPresetScene(
+        engine,
+        imageURI,
+        imageWidth,
+        imageHeight,
+        preset,
+        focalPoint
+      )
     );
     const blob = await renderScene(sceneString);
     results.push({

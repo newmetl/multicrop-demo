@@ -23,7 +23,6 @@ export class CropEditor {
   private cesdk!: CreativeEditorSDK;
   private modal: HTMLElement;
   private title: HTMLElement;
-  private currentImageBlock: number | null = null;
 
   private constructor(modal: HTMLElement, title: HTMLElement) {
     this.modal = modal;
@@ -78,7 +77,6 @@ export class CropEditor {
       .getChildren(page)
       .find((id) => engine.block.supportsCrop(id));
     if (imageBlock == null) throw new Error('open: no croppable block in scene');
-    this.currentImageBlock = imageBlock;
 
     await this.fitPage(page);
     engine.block.select(imageBlock);
@@ -100,7 +98,6 @@ export class CropEditor {
 
   hide(): void {
     this.modal.classList.add('hidden');
-    this.currentImageBlock = null;
   }
 
   /**
