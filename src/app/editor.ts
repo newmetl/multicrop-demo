@@ -83,6 +83,10 @@ export class CropEditor {
     await this.fitPage(page);
     engine.block.select(imageBlock);
     engine.editor.setEditMode('Crop');
+
+    // Defensively keep the crop inspector panel closed (autoOpen is also
+    // disabled in the config) so only the canvas + crop rectangle remain.
+    this.cesdk.ui.closePanel('//ly.img.panel/inspector/crop');
   }
 
   /** Exit crop mode and serialize the (edited) scene. Hides the modal. */

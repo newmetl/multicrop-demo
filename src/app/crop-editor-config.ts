@@ -18,6 +18,10 @@ export function configureCropEditor(cesdk: CreativeEditorSDK): void {
   cesdk.feature.enable(['ly.img.crop']);
   // Disable everything that would add chrome or editing affordances.
   cesdk.feature.disable([
+    // Enabling 'ly.img.crop' turns on its children, including auto-opening the
+    // crop inspector panel on crop mode. We want only the canvas + crop
+    // rectangle, so suppress the panel auto-open.
+    'ly.img.crop.panel.autoOpen',
     'ly.img.text',
     'ly.img.filter',
     'ly.img.adjustment',
@@ -47,10 +51,11 @@ export function configureCropEditor(cesdk: CreativeEditorSDK): void {
   );
 
   // --- Crop frame locked to the preset ---
-  // Hide the aspect-ratio selector and the crop resize handles, so the frame
-  // can't be resized — only the image is pannable/scalable inside it.
-  engine.editor.setSettingString('ui/crop/aspectRatios', '');
-  engine.editor.setSettingBool('ui/crop/allowAspectRatioSelection', false);
+  // Hide the crop resize handles so the frame can't be resized — only the image
+  // is pannable/scalable inside it. The aspect-ratio selector lives in the crop
+  // inspector/panel, which is already stripped above, so there's nothing extra
+  // to disable. (There is no `ui/crop/*` engine setting in this version — the
+  // valid keypaths are `controlGizmo/*`, `page/*`, etc.)
   engine.editor.setSettingBool('controlGizmo/showCropHandles', false);
   // Keep scale handles so users can zoom the image within the frame.
   engine.editor.setSettingBool('controlGizmo/showCropScaleHandles', true);
