@@ -44,18 +44,37 @@ function withEngine<T>(critical: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/** Find the croppable image block (the crop rectangle) in the loaded scene. */
+function findCropBlock(engine: CreativeEngine): number {
+  const page = engine.block.findByType('page')[0];
+  if (page == null) throw new Error('renderScene: scene has no page');
+  const block = engine.block
+    .getChildren(page)
+    .find((id) => engine.block.supportsCrop(id));
+  if (block == null) throw new Error('renderScene: scene has no croppable block');
+  return block;
+}
+
 /**
- * Render a serialized single-page scene to a PNG Blob at the page's native
- * pixel size. Loads the scene into the headless engine, exports its first
- * page, and returns the blob. Serialized against all other engine operations.
+ * Render a serialized scene's crop block to a PNG Blob at the preset's exact
+ * pixel size. The crop block's frame is the crop rectangle (a sub-region of an
+ * image-sized page); `targetWidth/targetHeight` scale that region to the preset
+ * dimensions while preserving aspect. Serialized against all other engine ops.
  */
-export function renderScene(sceneString: string): Promise<Blob> {
+export function renderScene(
+  sceneString: string,
+  targetWidth: number,
+  targetHeight: number
+): Promise<Blob> {
   return withEngine(async () => {
     const engine = await getRenderEngine();
     await engine.scene.loadFromString(sceneString);
-    const page = engine.block.findByType('page')[0];
-    if (page == null) throw new Error('renderScene: scene has no page');
-    return engine.block.export(page, { mimeType: 'image/png' });
+    const cropBlock = findCropBlock(engine);
+    return engine.block.export(cropBlock, {
+      mimeType: 'image/png',
+      targetWidth,
+      targetHeight
+    });
   });
 }
 
@@ -95,7 +114,7 @@ export async function generateCrops(
         focalPoint
       )
     );
-    const blob = await renderScene(sceneString);
+    const blob = await renderScene(sceneString, preset.width, preset.height);
     results.push({
       id: preset.id,
       presetLabel: preset.label,

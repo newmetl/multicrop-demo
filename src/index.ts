@@ -137,7 +137,7 @@ async function handleEditorSave(sceneString: string): Promise<void> {
   if (result == null) return;
   try {
     result.sceneString = sceneString;
-    const blob = await renderScene(sceneString);
+    const blob = await renderScene(sceneString, result.width, result.height);
     setThumbnail(result, URL.createObjectURL(blob));
     updateTile(result);
   } catch (error) {

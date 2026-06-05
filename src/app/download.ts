@@ -29,7 +29,7 @@ export async function downloadAll(results: CropResult[]): Promise<void> {
   for (const result of results) {
     files.push({
       name: fileNameFor(result),
-      input: await renderScene(result.sceneString)
+      input: await renderScene(result.sceneString, result.width, result.height)
     });
   }
 
