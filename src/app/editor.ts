@@ -23,6 +23,8 @@ export class CropEditor {
   private cesdk!: CreativeEditorSDK;
   private modal: HTMLElement;
   private title: HTMLElement;
+  /** Unsubscribe for the crop-mode guard (active only while editing). */
+  private cropGuard: (() => void) | null = null;
 
   private constructor(modal: HTMLElement, title: HTMLElement) {
     this.modal = modal;
@@ -83,17 +85,54 @@ export class CropEditor {
     engine.block.setCropAspectRatioLocked(imageBlock, true);
 
     await this.fitPage(page);
-    engine.block.select(imageBlock);
-    engine.editor.setEditMode('Crop');
+    this.enterCropMode(imageBlock);
 
     // Defensively keep the crop inspector panel closed (autoOpen is also
     // disabled in the config) so only the canvas + crop rectangle remain.
     this.cesdk.ui.closePanel('//ly.img.panel/inspector/crop');
   }
 
+  /**
+   * Select the crop block and enter Crop mode — and hold it there.
+   *
+   * On the FIRST open the editor's WebGL canvas mounts a few frames after this
+   * runs (the canvas only mounts once the modal is genuinely visible), and that
+   * mount resets the edit mode back to the default 'Transform'. Because the crop
+   * block is a sub-region of an image-sized page, Transform mode would hide the
+   * dimmed image overflow and show the bare page instead of the crop tool. So we
+   * re-assert Crop whenever the editor leaves it while the modal is open. The
+   * guard is torn down on save/cancel so it never fights the Transform that
+   * `save()` sets to serialize the result.
+   */
+  private enterCropMode(imageBlock: number): void {
+    const { engine } = this.cesdk;
+    this.teardownCropGuard();
+    const apply = () => {
+      engine.block.select(imageBlock);
+      engine.editor.setEditMode('Crop');
+    };
+    apply();
+    this.cropGuard = engine.editor.onStateChanged(() => {
+      if (this.modal.classList.contains('hidden')) return;
+      if (engine.editor.getEditMode() !== 'Crop') apply();
+    });
+  }
+
+  /** Remove the crop-mode guard (if any) so it can't re-assert Crop. */
+  private teardownCropGuard(): void {
+    if (this.cropGuard != null) {
+      this.cropGuard();
+      this.cropGuard = null;
+    }
+  }
+
   /** Exit crop mode and serialize the (edited) scene. Hides the modal. */
   async save(): Promise<string> {
     const { engine } = this.cesdk;
+    // Tear down the guard BEFORE switching to Transform — otherwise it would snap
+    // us straight back into Crop and corrupt the serialized result. (hide(),
+    // called below, tears down again; that second call is a safe no-op.)
+    this.teardownCropGuard();
     engine.editor.setEditMode('Transform');
     const sceneString = await engine.scene.saveToString();
     this.hide();
@@ -101,6 +140,7 @@ export class CropEditor {
   }
 
   hide(): void {
+    this.teardownCropGuard();
     this.modal.classList.add('hidden');
   }
 
