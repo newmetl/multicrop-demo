@@ -50,14 +50,13 @@ export function configureCropEditor(cesdk: CreativeEditorSDK): void {
     []
   );
 
-  // --- Crop frame locked to the preset ---
-  // Hide the crop resize handles so the frame can't be resized — only the image
-  // is pannable/scalable inside it. The aspect-ratio selector lives in the crop
-  // inspector/panel, which is already stripped above, so there's nothing extra
-  // to disable. (There is no `ui/crop/*` engine setting in this version — the
-  // valid keypaths are `controlGizmo/*`, `page/*`, etc.)
-  engine.editor.setSettingBool('controlGizmo/showCropHandles', false);
-  // Keep scale handles so users can zoom the image within the frame.
+  // --- Resizable, aspect-locked crop frame ---
+  // Show the crop resize handles. The frame stays at the preset aspect ratio
+  // because the block has `setCropAspectRatioLocked(true)` (set in scene.ts) —
+  // the engine keeps the ratio during handle resize. Coverage is clamped by
+  // crop mode, so the image can never be resized/moved to expose emptiness.
+  engine.editor.setSettingBool('controlGizmo/showCropHandles', true);
+  // Keep scale handles so users can also scale the image within the frame.
   engine.editor.setSettingBool('controlGizmo/showCropScaleHandles', true);
 
   // --- Page/crop visuals ---

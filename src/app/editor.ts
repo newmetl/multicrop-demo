@@ -78,6 +78,10 @@ export class CropEditor {
       .find((id) => engine.block.supportsCrop(id));
     if (imageBlock == null) throw new Error('open: no croppable block in scene');
 
+    // The lock is serialized in the scene string, but re-assert defensively so
+    // crop-handle resizes always preserve the preset aspect ratio.
+    engine.block.setCropAspectRatioLocked(imageBlock, true);
+
     await this.fitPage(page);
     engine.block.select(imageBlock);
     engine.editor.setEditMode('Crop');
