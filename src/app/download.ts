@@ -23,8 +23,8 @@ function fileNameFor(result: CropResult): string {
 /** Re-render all results, zip them, and trigger a browser download. */
 export async function downloadAll(results: CropResult[]): Promise<void> {
   // Render sequentially: renderScene loads each scene into the SHARED headless
-  // engine and exports it, so concurrent calls (Promise.all) would race on the
-  // single engine's scene state and deadlock. One at a time is required.
+  // engine. It's mutex-serialized there, so Promise.all would queue safely — but
+  // a sequential loop is simpler and avoids buffering every scene at once.
   const files: { name: string; input: Blob }[] = [];
   for (const result of results) {
     files.push({

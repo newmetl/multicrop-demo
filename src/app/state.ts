@@ -10,9 +10,9 @@ export interface CropResult {
   id: string;
   /** Human-readable label, e.g. "Instagram Story". */
   presetLabel: string;
-  /** Page width in pixels. */
+  /** Preset width in pixels (used as the export targetWidth). */
   width: number;
-  /** Page height in pixels. */
+  /** Preset height in pixels (used as the export targetHeight). */
   height: number;
   /** Serialized single-page scene (source of truth for this crop). */
   sceneString: string;

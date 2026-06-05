@@ -8,7 +8,7 @@ starter kit. It crops one uploaded image to many social-media sizes at once.
 1. Upload an image.
 2. Tick one or more social-media sizes (grouped by platform).
 3. Click **Generate** → a spinner shows while crops are produced headlessly.
-4. A gallery of cropped versions appears (saliency-framed cover crops).
+4. A gallery of cropped versions appears (saliency-framed crop previews).
 5. Hover a tile → **Edit** button → opens a crop-only editor in a modal.
 6. Re-frame the crop: the whole image shows with dimmed overflow; the crop
    rectangle is locked to the preset aspect ratio (resizable, pan/scale the image,
