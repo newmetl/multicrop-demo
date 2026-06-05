@@ -50,6 +50,9 @@ async function main(): Promise<void> {
   presetIndex = indexPresets(byCategory);
   renderSizeList(byCategory);
   wireSelectionToGenerate();
+  // Editor + presets are ready: reveal the app and drop the full-screen overlay.
+  document.getElementById('app')!.classList.remove('hidden');
+  document.getElementById('loading-overlay')!.classList.add('hidden');
 
   const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement;
   const fileInput = document.getElementById('file-input') as HTMLInputElement;
@@ -155,4 +158,13 @@ function getImageSize(uri: string): Promise<{ width: number; height: number }> {
 main().catch((error) => {
   // eslint-disable-next-line no-console
   console.error('MultiCrop failed to start:', error);
+  // Don't leave the startup spinner spinning forever — show the failure there.
+  const overlay = document.getElementById('loading-overlay');
+  const text = document.getElementById('loading-text');
+  const spinner = overlay?.querySelector('.spinner');
+  spinner?.remove();
+  if (text != null) {
+    text.textContent =
+      'Failed to load the editor. See the console for details.';
+  }
 });

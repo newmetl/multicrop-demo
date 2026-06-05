@@ -5,6 +5,7 @@
  */
 
 import {
+  CATEGORY_ICON,
   CATEGORY_LABEL,
   CATEGORY_ORDER,
   type PresetsByCategory
@@ -23,7 +24,9 @@ export function renderSizeList(byCategory: PresetsByCategory): void {
 
     const heading = document.createElement('div');
     heading.className = 'group-title';
-    heading.textContent = CATEGORY_LABEL[category];
+    // Brand glyph (inherits the heading's muted color via currentColor) + label.
+    heading.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${CATEGORY_ICON[category]}</svg>`;
+    heading.append(CATEGORY_LABEL[category]);
     container.appendChild(heading);
 
     for (const preset of presets) {
