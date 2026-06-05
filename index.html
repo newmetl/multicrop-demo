@@ -21,7 +21,10 @@
       .sizes label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
       .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
       .tile { position: relative; background: #000; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-      .tile img { display: block; width: 100%; height: 180px; object-fit: contain; background: #000; }
+      /* Show each crop at its true aspect ratio (no letterbox bars), so the
+         thumbnail faithfully previews the full-bleed exported crop. */
+      .tile img { display: block; width: 100%; height: auto; background: #000; }
+      .gallery { align-items: start; }
       .tile .caption { padding: 8px 10px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
       .tile .edit-btn { position: absolute; inset: 0 0 auto auto; margin: 8px; opacity: 0; transition: opacity .12s; }
       .tile:hover .edit-btn { opacity: 1; }
