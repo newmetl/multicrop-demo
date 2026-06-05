@@ -67,6 +67,13 @@ export function setGenerating(isGenerating: boolean): void {
     : '';
 }
 
+// Longest displayed side (px) of the largest crop; everything else is scaled
+// down from this so the tiles' relative sizes mirror the crops' real pixel
+// dimensions. The smallest tiles get a floor so their caption/Edit button stay
+// usable.
+const GALLERY_MAX_SIDE = 360;
+const GALLERY_MIN_WIDTH = 60;
+
 /** Render the gallery from results, wiring each Edit button via `onEdit`. */
 export function renderGallery(
   results: CropResult[],
@@ -74,10 +81,20 @@ export function renderGallery(
 ): void {
   const gallery = $('gallery');
   gallery.innerHTML = '';
+
+  // Shared scale: map the largest dimension across all crops to
+  // GALLERY_MAX_SIDE, so a 1920px crop renders wider than a 320px one.
+  const maxSide = Math.max(
+    1,
+    ...results.flatMap((r) => [r.width, r.height])
+  );
+  const scale = GALLERY_MAX_SIDE / maxSide;
+
   for (const result of results) {
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.dataset.resultId = result.id;
+    tile.style.width = `${Math.max(GALLERY_MIN_WIDTH, Math.round(result.width * scale))}px`;
 
     const img = document.createElement('img');
     img.src = result.thumbnailUrl;
