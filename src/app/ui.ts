@@ -67,12 +67,13 @@ export function setGenerating(isGenerating: boolean): void {
     : '';
 }
 
-// Longest displayed side (px) of the largest crop; everything else is scaled
-// down from this so the tiles' relative sizes mirror the crops' real pixel
-// dimensions. The smallest tiles get a floor so their caption/Edit button stay
-// usable.
-const GALLERY_MAX_SIDE = 360;
-const GALLERY_MIN_WIDTH = 60;
+// The tiles share one width (uniform grid); only the thumbnail inside each tile
+// is sized relative to its crop. The largest crop's longest side maps to
+// THUMB_MAX_SIDE (which fits inside the fixed-height stage), and every other
+// thumbnail is scaled by the same factor — so a 1920px crop shows a bigger
+// thumbnail than a 320px one, centered in the same-size box.
+const THUMB_MAX_SIDE = 180;
+const THUMB_MIN_SIDE = 24;
 
 /** Render the gallery from results, wiring each Edit button via `onEdit`. */
 export function renderGallery(
@@ -82,23 +83,25 @@ export function renderGallery(
   const gallery = $('gallery');
   gallery.innerHTML = '';
 
-  // Shared scale: map the largest dimension across all crops to
-  // GALLERY_MAX_SIDE, so a 1920px crop renders wider than a 320px one.
-  const maxSide = Math.max(
-    1,
-    ...results.flatMap((r) => [r.width, r.height])
-  );
-  const scale = GALLERY_MAX_SIDE / maxSide;
+  // Shared scale across the batch so thumbnail sizes are comparable.
+  const maxSide = Math.max(1, ...results.flatMap((r) => [r.width, r.height]));
+  const scale = THUMB_MAX_SIDE / maxSide;
 
   for (const result of results) {
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.dataset.resultId = result.id;
-    tile.style.width = `${Math.max(GALLERY_MIN_WIDTH, Math.round(result.width * scale))}px`;
+
+    // Fixed-size stage; the thumbnail is scaled to its relative size + centered.
+    const stage = document.createElement('div');
+    stage.className = 'stage';
 
     const img = document.createElement('img');
     img.src = result.thumbnailUrl;
     img.alt = result.presetLabel;
+    img.style.width = `${Math.max(THUMB_MIN_SIDE, Math.round(result.width * scale))}px`;
+    img.style.height = `${Math.max(THUMB_MIN_SIDE, Math.round(result.height * scale))}px`;
+    stage.appendChild(img);
 
     const caption = document.createElement('div');
     caption.className = 'caption';
@@ -109,7 +112,7 @@ export function renderGallery(
     editBtn.textContent = 'Edit';
     editBtn.addEventListener('click', () => onEdit(result.id));
 
-    tile.append(img, caption, editBtn);
+    tile.append(stage, caption, editBtn);
     gallery.appendChild(tile);
   }
   $('results-panel').classList.remove('hidden');
