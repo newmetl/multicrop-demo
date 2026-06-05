@@ -68,64 +68,46 @@ export async function buildPresetScene(
   engine.block.setPositionY(imageBlock, 0);
   engine.block.appendChild(page, imageBlock);
 
-  frameToFocalPoint(
-    engine,
-    imageBlock,
-    imageWidth,
-    imageHeight,
-    preset,
-    focalPoint
-  );
+  await frameToFocalPoint(engine, imageBlock, focalPoint);
 
   return engine.scene.saveToString();
 }
 
 /**
- * Cover the frame and bias toward the focal point. Starts from 'Cover' (which
- * guarantees the image covers the frame, centered), then — on the axis that
- * overflows — translates so the focal point moves toward the frame center,
- * clamped to keep full coverage. With no focal point, leaves the centered
- * cover as-is.
+ * Cover the frame (aspect-preserving, no distortion) and bias the visible
+ * region toward the focal point.
  *
- * Crop translation is a fraction of the frame in [-1, 1]; positive X moves
- * content right, positive Y moves content down (per CE.SDK crop docs).
+ * The image is force-loaded first so its natural size is known, then `Cover`
+ * computes the correct aspect-preserving crop scale (`sx`, `sy`) — in CE.SDK's
+ * normalized crop space, the non-overflowing axis is 1 and the overflowing axis
+ * is `frameAspect/imageAspect` (or its inverse). Switching to `Crop` preserves
+ * those scales; we then set the translation directly in that space:
+ *
+ *   tx = -(sx - 1) * focalX,  ty = -(sy - 1) * focalY
+ *
+ * At focal 0.5 this equals Cover's centered translation `-(s-1)/2`; at 0 it
+ * shows the top/left edge, at 1 the bottom/right — always within the
+ * fully-covered range, so there are never empty bars and the image is never
+ * stretched. With no focal point we center (0.5, 0.5).
  */
-function frameToFocalPoint(
+async function frameToFocalPoint(
   engine: CreativeEngine,
   block: number,
-  imageWidth: number,
-  imageHeight: number,
-  preset: PresetSize,
   focalPoint: FocalPoint | null
-): void {
+): Promise<void> {
+  // Cover's scale depends on the image's natural dimensions, so the resource
+  // must be decoded before we read the scale back.
+  await engine.block.forceLoadResources([block]);
+
   engine.block.setContentFillMode(block, 'Cover');
-  if (focalPoint == null) return;
+  const sx = engine.block.getCropScaleX(block);
+  const sy = engine.block.getCropScaleY(block);
 
-  const frameAspect = preset.width / preset.height;
-  const imageAspect =
-    imageWidth > 0 && imageHeight > 0 ? imageWidth / imageHeight : frameAspect;
-
-  // Switch to manual so translation sticks, preserving Cover's scale.
+  // Switch to manual control (preserves the Cover scales) and position the
+  // covered image toward the focal point.
   engine.block.setContentFillMode(block, 'Crop');
-
-  if (imageAspect > frameAspect) {
-    // Image is wider than frame -> horizontal overflow. Fraction of the image
-    // that overflows the frame width (total, both sides):
-    const overflow = 1 - frameAspect / imageAspect;
-    // Move focal point to center: shift by (0.5 - focalX) of the image width;
-    // expressed as a fraction of the frame, clamped to +/- overflow:
-    const tx = clamp((0.5 - focalPoint.x) * 2, -overflow, overflow);
-    engine.block.setCropTranslationX(block, tx);
-  } else if (imageAspect < frameAspect) {
-    const overflow = 1 - imageAspect / frameAspect;
-    const ty = clamp((0.5 - focalPoint.y) * 2, -overflow, overflow);
-    engine.block.setCropTranslationY(block, ty);
-  }
-
-  // Guarantee no gaps after translating.
-  engine.block.adjustCropToFillFrame(block, 1.0);
-}
-
-function clamp(v: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, v));
+  const fx = focalPoint?.x ?? 0.5;
+  const fy = focalPoint?.y ?? 0.5;
+  engine.block.setCropTranslationX(block, -(sx - 1) * fx);
+  engine.block.setCropTranslationY(block, -(sy - 1) * fy);
 }
