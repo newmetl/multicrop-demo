@@ -10,8 +10,9 @@ starter kit. It crops one uploaded image to many social-media sizes at once.
 3. Click **Generate** → a spinner shows while crops are produced headlessly.
 4. A gallery of cropped versions appears (saliency-framed cover crops).
 5. Hover a tile → **Edit** button → opens a crop-only editor in a modal.
-6. Re-frame the crop over the full original image (frame locked to the preset);
-   **Save** updates that tile, **Cancel** discards.
+6. Re-frame the crop: the whole image shows with dimmed overflow; the crop
+   rectangle is locked to the preset aspect ratio (resizable, pan/scale the image,
+   always covered). **Save** updates that tile, **Cancel** discards.
 7. **Download all** → one ZIP of all crops.
 
 ## Run / verify
@@ -57,10 +58,10 @@ Two CE.SDK engines + a vanilla-TS DOM shell. **One scene per preset.**
 | `src/app/state.ts` | `AppState`, `CropResult`, in-memory store, thumbnail URL lifecycle. |
 | `src/app/presets.ts` | Loads **social-only** presets from `ly.img.page.presets` (groups → categories; print/video groups excluded). |
 | `src/app/saliency.ts` | Focal-point detection via `@imgly/background-removal` alpha centroid + head bias. **Copied verbatim** from the sibling project (see below). |
-| `src/app/scene.ts` | `buildPresetScene()` — single-page scene + cover/focal framing. **Crop math lives here.** |
-| `src/app/renderer.ts` | Headless engine lifecycle; `generateCrops`, `renderScene`, `focalPointFor`; the **engine serialization mutex**. |
-| `src/app/crop-editor-config.ts` | Strips the editor down to crop-only (features off, UI regions emptied, frame locked). |
-| `src/app/editor.ts` | `CropEditor` class: create-once, `open`/`save`/`cancel` in the modal. |
+| `src/app/scene.ts` | `buildPresetScene()` — image-sized page + a preset-aspect **crop block** framed at the focal point; fill aligned 1:1 to the page. **Crop-rect geometry (`computeCropRect`) lives here.** |
+| `src/app/renderer.ts` | Headless engine lifecycle; `generateCrops`, `renderScene` (exports the **crop block** at preset px via `targetWidth/targetHeight`), `focalPointFor`; the **engine serialization mutex**. |
+| `src/app/crop-editor-config.ts` | Strips the editor to crop-only (features off, UI regions emptied) and **shows the resizable crop handles** (ratio locked per-block). |
+| `src/app/editor.ts` | `CropEditor` class: create-once, `open`/`save`/`cancel` in the modal; `enterCropMode` holds Crop mode against the first-mount reset. |
 | `src/app/ui.ts` | DOM rendering (checkbox list, gallery, spinner) — no engine logic. |
 | `src/app/download.ts` | Re-renders every crop sequentially → `client-zip` → one download. |
 
@@ -82,24 +83,32 @@ them at the call sites.
    → append the page directly to the **scene block** (`create()`'s return value).
    `getPages()` still recognizes it. (`scene.ts`)
 
-2. **Cover crop math (the important one).** Crops must be aspect-preserving cover
-   crops biased to the focal point — NOT stretched, NOT letterboxed. Recipe in
-   `frameToFocalPoint` (`scene.ts`):
-   - `await engine.block.forceLoadResources([block])` first (Cover scale needs
-     the image's natural size decoded).
-   - `setContentFillMode('Cover')` → read `sx = getCropScaleX`, `sy = getCropScaleY`.
-     These are CE.SDK's normalized cover scales (non-overflow axis = 1, overflow
-     axis = `frameAspect/imageAspect` or its inverse). This is NOT distortion.
+2. **Crop = a crop block on an image-sized page (the important one).** Each preset
+   scene is: page sized to the *source image*, holding one image block whose
+   **frame is the crop rectangle** — the largest preset-aspect rectangle that fits
+   the image, centred on the focal point (`computeCropRect` in `scene.ts`). The
+   image fill is aligned 1:1 to the page by `coverCropRectToPage`:
+   - `await engine.block.forceLoadResources([block])` first (Cover scale needs the
+     image's natural size decoded).
+   - `setContentFillMode('Cover')` → read `sx = getCropScaleX`, `sy = getCropScaleY`
+     (normalized cover scales: non-overflow axis = 1, overflow axis =
+     `imageDim/cropDim`). NOT distortion.
    - `setContentFillMode('Crop')` (preserves `sx`,`sy`) then
-     `setCropTranslationX(-(sx-1)*focalX)`, `setCropTranslationY(-(sy-1)*focalY)`.
-   - focal 0.5 = Cover's centered crop; 0/1 = edges; always fully covered.
-   - Do NOT overwrite the translation with arbitrary values or call
-     `adjustCropToFillFrame` — that was the original stretch/letterbox bug.
+     `setCropTranslation = -(scale-1) * (cropOffset / overflow)` per axis — the
+     proven `-(scale-1)*focal` form with the clamped crop offset, so the image maps
+     image→page 1:1 and the block windows the focal region. The rest of the image is
+     the dimmed overflow shown in crop mode (engine-native).
+   - The renderer exports this **block** at preset px via `targetWidth/targetHeight`.
+   - Do NOT call `adjustCropToFillFrame` or set arbitrary translations.
 
-3. **No `ui/crop/*` engine settings in 1.76.** `setSettingString('ui/crop/...')`
-   throws ("no `ui` keypath"). Lock the crop frame via
-   `controlGizmo/showCropHandles=false` (+ `showCropScaleHandles=true`) and by
-   stripping the inspector/panel UI. (`crop-editor-config.ts`)
+3. **Resizable, aspect-locked crop frame.** The crop frame is the crop block's
+   frame; it is **resizable** via crop handles (`controlGizmo/showCropHandles=true`,
+   `+ showCropScaleHandles=true`) but ratio-locked by
+   `setCropAspectRatioLocked(block, true)` on the block — the engine preserves the
+   ratio during handle resize. Coverage is clamped automatically by crop mode, so
+   the image can never be moved/resized to expose emptiness (no manual clamping).
+   There is still no `ui/crop/*` engine setting in this version; the aspect-ratio
+   picker is omitted entirely. (`crop-editor-config.ts`, `scene.ts`)
 
 4. **Crop inspector panel auto-opens** on entering Crop mode. Disable the
    `ly.img.crop.panel.autoOpen` feature AND defensively
@@ -117,7 +126,12 @@ them at the call sites.
    `open()` (modal shown). Don't try to "warm" it off-screen with
    `display:none`/`transform:translateX(-..)`/`opacity:0` — none mount the canvas;
    they were tried and reverted. The single instance being reused IS the
-   "held in background" win. (`editor.ts`, modal CSS in `index.html`)
+   "held in background" win. **That first mount also resets the edit mode to
+   `Transform` a few frames after `open()` returns** — and with the crop block being
+   a sub-region of an image-sized page, Transform mode hides the dimmed overflow and
+   shows the bare page. So `CropEditor.enterCropMode()` re-asserts `Crop` via an
+   `engine.editor.onStateChanged` guard (torn down on save/cancel) instead of
+   setting it once. (`editor.ts`, modal CSS in `index.html`)
 
 7. **Object-URL lifetime / cross-engine portability.** The uploaded image is a
    `blob:` object URL (`state.sourceURI`) kept alive for the whole session. Scene

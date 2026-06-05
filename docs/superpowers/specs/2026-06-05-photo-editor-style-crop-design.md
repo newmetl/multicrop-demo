@@ -1,7 +1,7 @@
 # MultiCrop — Photo-Editor-Style Crop Editor (Design)
 
 **Date:** 2026-06-05
-**Status:** Approved (pending written-spec review)
+**Status:** Implemented
 **Supersedes:** the crop behavior in `2026-06-03-multicrop-social-sizes-design.md`
 (point 7: "crop rectangle locked to the preset size, pan/scale the image only").
 
