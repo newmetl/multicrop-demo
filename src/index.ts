@@ -68,6 +68,9 @@ async function main(): Promise<void> {
   fileInput.addEventListener('change', () => {
     handleUpload(fileInput).catch((e) => notifyError('Upload failed', e));
   });
+  document.getElementById('sample-btn')!.addEventListener('click', () => {
+    handleSample().catch((e) => notifyError('Loading the sample image failed', e));
+  });
 
   document
     .getElementById('generate-btn')!
@@ -82,20 +85,26 @@ async function main(): Promise<void> {
     .addEventListener('click', handleDeleteAll);
 }
 
-async function handleUpload(input: HTMLInputElement): Promise<void> {
-  const file = input.files?.[0];
-  if (file == null) return;
-  // Replacing the image discards every version (their crops reference the old
-  // source URL, about to be revoked). Confirm before wiping the user's work.
-  if (state.results.length > 0) {
-    const ok = window.confirm(
-      `Uploading a new image will remove all ${state.results.length} current versions. Continue?`
-    );
-    if (!ok) {
-      input.value = '';
-      return;
-    }
-  }
+/** A bundled photo (served from `public/`) for users who don't want to upload. */
+const SAMPLE_IMAGE_URL = '/sample.jpg';
+
+/**
+ * Replacing the image discards every version (their crops reference the old
+ * source URL, about to be revoked). Confirm before wiping the user's work.
+ */
+function confirmReplace(): boolean {
+  if (state.results.length === 0) return true;
+  return window.confirm(
+    `Loading a new image will remove all ${state.results.length} current versions. Continue?`
+  );
+}
+
+/**
+ * Point the app at a new source image: discard old results, revoke the previous
+ * blob URL, and reflect the new one in the shell. Shared by file upload and the
+ * sample-image button (both hand us a `File`).
+ */
+async function loadImageFile(file: File): Promise<void> {
   clearAllResults();
   clearResults();
   if (state.sourceURI) URL.revokeObjectURL(state.sourceURI);
@@ -105,6 +114,36 @@ async function handleUpload(input: HTMLInputElement): Promise<void> {
   state.sourceWidth = width;
   state.sourceHeight = height;
   setUploadedImage(file.name, sourceURI, width, height, file.size);
+}
+
+async function handleUpload(input: HTMLInputElement): Promise<void> {
+  const file = input.files?.[0];
+  if (file == null) return;
+  if (!confirmReplace()) {
+    input.value = '';
+    return;
+  }
+  await loadImageFile(file);
+  // Reset so re-selecting the same file fires `change` again.
+  input.value = '';
+}
+
+/**
+ * Load the bundled sample image. Fetched into a blob so it flows through the
+ * exact same blob-URL path as an upload (same-origin → no CORS issues for the
+ * saliency canvas reads).
+ */
+async function handleSample(): Promise<void> {
+  if (!confirmReplace()) return;
+  const response = await fetch(SAMPLE_IMAGE_URL);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch sample image (HTTP ${response.status})`);
+  }
+  const blob = await response.blob();
+  const file = new File([blob], 'sample.jpg', {
+    type: blob.type || 'image/jpeg'
+  });
+  await loadImageFile(file);
 }
 
 async function handleGenerate(): Promise<void> {

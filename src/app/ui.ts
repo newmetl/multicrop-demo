@@ -241,6 +241,9 @@ export function setUploadedImage(
   preview.src = previewUrl;
   preview.classList.remove('hidden');
   ($('upload-btn') as HTMLButtonElement).textContent = 'Replace image';
+  // The sample shortcut is a get-started affordance; once an image is loaded the
+  // "Replace image" button covers swapping it out.
+  $('sample-btn').classList.add('hidden');
   hasImage = true;
   refreshGenerate();
 }
