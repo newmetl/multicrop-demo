@@ -15,6 +15,7 @@
       .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
       button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font-size: 14px; cursor: pointer; }
       button.secondary { background: #2a2f3a; }
+      button.danger { background: #b91c1c; }
       button:disabled { opacity: 0.5; cursor: not-allowed; }
       #upload-preview { height: 64px; width: auto; max-width: 120px; object-fit: cover; border: 1px solid var(--border); border-radius: 6px; }
       .sizes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 16px; }
@@ -80,7 +81,8 @@
       <div id="results-panel" class="panel hidden">
         <div class="row" style="margin-bottom: 16px;">
           <strong>Generated crops</strong>
-          <button id="download-all-btn" class="secondary" style="margin-left:auto;">Download all (.zip)</button>
+          <button id="delete-all-btn" class="danger" style="margin-left:auto;">Delete all</button>
+          <button id="download-all-btn" class="secondary">Download all (.zip)</button>
         </div>
         <div id="gallery" class="gallery"></div>
       </div>

@@ -78,6 +78,11 @@ export function setGenerating(generating: boolean): void {
   refreshGenerate();
 }
 
+/** Show a short note in the generate-status area (e.g. nothing new to do). */
+export function setGenerateNote(text: string): void {
+  $('generate-status').textContent = text;
+}
+
 // The tiles share one width (uniform grid); only the thumbnail inside each tile
 // is sized relative to its crop. The largest crop's longest side maps to
 // THUMB_MAX_SIDE (which fits inside the fixed-height stage), and every other

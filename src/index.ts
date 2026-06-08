@@ -16,6 +16,7 @@ import {
   type Preset
 } from './app/presets';
 import {
+  clearAllResults,
   findResult,
   removeResult,
   setThumbnail,
@@ -27,6 +28,7 @@ import {
   renderGallery,
   renderSizeList,
   selectedPresetIds,
+  setGenerateNote,
   setGenerating,
   setUploadedImage,
   updateTile,
@@ -75,15 +77,26 @@ async function main(): Promise<void> {
   document.getElementById('download-all-btn')!.addEventListener('click', () => {
     downloadAll(state.results).catch((e) => notifyError('Download failed', e));
   });
+  document
+    .getElementById('delete-all-btn')!
+    .addEventListener('click', handleDeleteAll);
 }
 
 async function handleUpload(input: HTMLInputElement): Promise<void> {
   const file = input.files?.[0];
   if (file == null) return;
-  // Reset any previous run: its crops reference the old source URL (about to be
-  // revoked), so they would break. Start from a clean "pick sizes" state.
-  for (const old of state.results) URL.revokeObjectURL(old.thumbnailUrl);
-  state.results = [];
+  // Replacing the image discards every version (their crops reference the old
+  // source URL, about to be revoked). Confirm before wiping the user's work.
+  if (state.results.length > 0) {
+    const ok = window.confirm(
+      `Uploading a new image will remove all ${state.results.length} current versions. Continue?`
+    );
+    if (!ok) {
+      input.value = '';
+      return;
+    }
+  }
+  clearAllResults();
   clearResults();
   if (state.sourceURI) URL.revokeObjectURL(state.sourceURI);
   const sourceURI = URL.createObjectURL(file);
@@ -96,27 +109,30 @@ async function handleUpload(input: HTMLInputElement): Promise<void> {
 
 async function handleGenerate(): Promise<void> {
   if (state.sourceURI == null) return;
-  const ids = selectedPresetIds();
-  const presets = ids
+  // Additive: skip presets that already have a version, so existing versions
+  // (and any edits the user made) are preserved. To recreate one, delete it
+  // first, then Generate.
+  const existing = new Set(state.results.map((r) => r.id));
+  const presets = selectedPresetIds()
     .map((id) => presetIndex.get(id))
-    .filter((p): p is Preset => p != null);
-  if (presets.length === 0) return;
+    .filter((p): p is Preset => p != null && !existing.has(p.id));
+  if (presets.length === 0) {
+    setGenerateNote('All selected sizes already generated.');
+    return;
+  }
 
   setGenerating(true);
   try {
     const focal = await focalPointFor(state.sourceURI);
-    const results = await generateCrops(
+    const created = await generateCrops(
       state.sourceURI,
       state.sourceWidth,
       state.sourceHeight,
       presets,
       focal
     );
-    // Revoke the previous run's thumbnail object URLs before replacing them,
-    // so re-generating doesn't leak blobs.
-    for (const old of state.results) URL.revokeObjectURL(old.thumbnailUrl);
-    state.results = results;
-    renderGallery(results, handleEdit, handleDelete);
+    state.results = state.results.concat(created);
+    renderGallery(state.results, handleEdit, handleDelete);
   } finally {
     setGenerating(false);
   }
@@ -126,6 +142,16 @@ let editingId: string | null = null;
 
 function handleDelete(id: string): void {
   if (removeResult(id)) removeTile(id);
+}
+
+function handleDeleteAll(): void {
+  const count = state.results.length;
+  if (count === 0) return;
+  if (!window.confirm(`Delete all ${count} versions? This can't be undone.`)) {
+    return;
+  }
+  clearAllResults();
+  clearResults();
 }
 
 async function handleEdit(id: string): Promise<void> {
