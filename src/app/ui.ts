@@ -53,21 +53,29 @@ export function selectedPresetIds(): string[] {
   ).map((cb) => cb.value);
 }
 
-/** Enable/disable Generate based on whether anything is checked. */
-export function wireSelectionToGenerate(): void {
-  const generateBtn = $('generate-btn') as HTMLButtonElement;
-  $('sizes').addEventListener('change', () => {
-    generateBtn.disabled = selectedPresetIds().length === 0;
-  });
+// Generate is enabled only when an image is uploaded, at least one size is
+// ticked, and we're not mid-generation. These flags + the live checkbox query
+// are the single source of truth, read by refreshGenerate().
+let hasImage = false;
+let isGenerating = false;
+
+/** Recompute the Generate button's disabled state from the current inputs. */
+function refreshGenerate(): void {
+  const btn = $('generate-btn') as HTMLButtonElement;
+  btn.disabled = isGenerating || !hasImage || selectedPresetIds().length === 0;
 }
 
-export function setGenerating(isGenerating: boolean): void {
-  const status = $('generate-status');
-  const btn = $('generate-btn') as HTMLButtonElement;
-  btn.disabled = isGenerating || selectedPresetIds().length === 0;
-  status.innerHTML = isGenerating
+/** Re-evaluate Generate whenever the size selection changes. */
+export function wireSelectionToGenerate(): void {
+  $('sizes').addEventListener('change', refreshGenerate);
+}
+
+export function setGenerating(generating: boolean): void {
+  isGenerating = generating;
+  $('generate-status').innerHTML = generating
     ? '<span class="spinner"></span> Generating…'
     : '';
+  refreshGenerate();
 }
 
 // The tiles share one width (uniform grid); only the thumbnail inside each tile
@@ -129,8 +137,19 @@ export function updateTile(result: CropResult): void {
   if (tile != null) (tile as HTMLImageElement).src = result.thumbnailUrl;
 }
 
-export function setUploadName(name: string): void {
+/**
+ * Reflect a freshly uploaded image in the shell: filename, inline preview, and
+ * (once a size is also picked) an enabled Generate button. `previewUrl` is the
+ * session `state.sourceURI` blob URL — reused here, NOT a new object URL, so it
+ * adds no object-URL lifecycle concerns (see CLAUDE.md §7).
+ */
+export function setUploadedImage(name: string, previewUrl: string): void {
   $('upload-name').textContent = name;
+  const preview = $('upload-preview') as HTMLImageElement;
+  preview.src = previewUrl;
+  preview.classList.remove('hidden');
+  hasImage = true;
+  refreshGenerate();
 }
 
 /** Empty the gallery and hide the results panel (e.g. on a new upload). */

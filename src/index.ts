@@ -22,7 +22,7 @@ import {
   renderSizeList,
   selectedPresetIds,
   setGenerating,
-  setUploadName,
+  setUploadedImage,
   updateTile,
   wireSelectionToGenerate
 } from './app/ui';
@@ -80,11 +80,12 @@ async function handleUpload(input: HTMLInputElement): Promise<void> {
   state.results = [];
   clearResults();
   if (state.sourceURI) URL.revokeObjectURL(state.sourceURI);
-  state.sourceURI = URL.createObjectURL(file);
-  const { width, height } = await getImageSize(state.sourceURI);
+  const sourceURI = URL.createObjectURL(file);
+  state.sourceURI = sourceURI;
+  const { width, height } = await getImageSize(sourceURI);
   state.sourceWidth = width;
   state.sourceHeight = height;
-  setUploadName(file.name);
+  setUploadedImage(file.name, sourceURI);
 }
 
 async function handleGenerate(): Promise<void> {
