@@ -15,9 +15,15 @@ import {
   loadSocialPresets,
   type Preset
 } from './app/presets';
-import { findResult, setThumbnail, state } from './app/state';
+import {
+  findResult,
+  removeResult,
+  setThumbnail,
+  state
+} from './app/state';
 import {
   clearResults,
+  removeTile,
   renderGallery,
   renderSizeList,
   selectedPresetIds,
@@ -110,13 +116,17 @@ async function handleGenerate(): Promise<void> {
     // so re-generating doesn't leak blobs.
     for (const old of state.results) URL.revokeObjectURL(old.thumbnailUrl);
     state.results = results;
-    renderGallery(results, handleEdit);
+    renderGallery(results, handleEdit, handleDelete);
   } finally {
     setGenerating(false);
   }
 }
 
 let editingId: string | null = null;
+
+function handleDelete(id: string): void {
+  if (removeResult(id)) removeTile(id);
+}
 
 async function handleEdit(id: string): Promise<void> {
   const result = findResult(id);

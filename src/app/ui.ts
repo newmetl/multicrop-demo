@@ -86,10 +86,16 @@ export function setGenerating(generating: boolean): void {
 const THUMB_MAX_SIDE = 180;
 const THUMB_MIN_SIDE = 24;
 
-/** Render the gallery from results, wiring each Edit button via `onEdit`. */
+/**
+ * Render the gallery from results. The whole tile is the click-to-edit target
+ * (`onEdit`); a centered "Edit" pill appears on hover as the affordance. A
+ * top-right ✕ deletes that version (`onDelete`) — its handler stops propagation
+ * so deleting never also opens the editor.
+ */
 export function renderGallery(
   results: CropResult[],
-  onEdit: (id: string) => void
+  onEdit: (id: string) => void,
+  onDelete: (id: string) => void
 ): void {
   const gallery = $('gallery');
   gallery.innerHTML = '';
@@ -102,6 +108,7 @@ export function renderGallery(
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.dataset.resultId = result.id;
+    tile.addEventListener('click', () => onEdit(result.id));
 
     // Fixed-size stage; the thumbnail is scaled to its relative size + centered.
     const stage = document.createElement('div');
@@ -114,19 +121,40 @@ export function renderGallery(
     img.style.height = `${Math.max(THUMB_MIN_SIDE, Math.round(result.height * scale))}px`;
     stage.appendChild(img);
 
+    // Centered hover affordance (a clear "this box is clickable" cue). No own
+    // click handler — clicks bubble to the tile's edit handler.
+    const editHint = document.createElement('div');
+    editHint.className = 'edit-hint';
+    const editPill = document.createElement('span');
+    editPill.textContent = 'Edit';
+    editHint.appendChild(editPill);
+    stage.appendChild(editHint);
+
     const caption = document.createElement('div');
     caption.className = 'caption';
     caption.textContent = `${result.presetLabel} · ${result.width}×${result.height}`;
 
-    const editBtn = document.createElement('button');
-    editBtn.className = 'edit-btn';
-    editBtn.textContent = 'Edit';
-    editBtn.addEventListener('click', () => onEdit(result.id));
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.setAttribute('aria-label', `Delete ${result.presetLabel}`);
+    deleteBtn.textContent = '✕';
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onDelete(result.id);
+    });
 
-    tile.append(stage, caption, editBtn);
+    tile.append(stage, caption, deleteBtn);
     gallery.appendChild(tile);
   }
   $('results-panel').classList.remove('hidden');
+}
+
+/** Remove a single tile by id; hide the results panel if none remain. */
+export function removeTile(id: string): void {
+  document.querySelector(`.tile[data-result-id="${id}"]`)?.remove();
+  if ($('gallery').children.length === 0) {
+    $('results-panel').classList.add('hidden');
+  }
 }
 
 /** Update a single tile's image after a re-render (no full re-render). */

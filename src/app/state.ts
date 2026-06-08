@@ -47,3 +47,18 @@ export function setThumbnail(result: CropResult, url: string): void {
   if (result.thumbnailUrl) URL.revokeObjectURL(result.thumbnailUrl);
   result.thumbnailUrl = url;
 }
+
+/** Remove a result by id, revoking its thumbnail URL. Returns true if removed. */
+export function removeResult(id: string): boolean {
+  const index = state.results.findIndex((r) => r.id === id);
+  if (index === -1) return false;
+  const [removed] = state.results.splice(index, 1);
+  URL.revokeObjectURL(removed.thumbnailUrl);
+  return true;
+}
+
+/** Remove every result, revoking all thumbnail URLs. */
+export function clearAllResults(): void {
+  for (const r of state.results) URL.revokeObjectURL(r.thumbnailUrl);
+  state.results = [];
+}
