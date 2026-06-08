@@ -145,6 +145,19 @@ export class CropEditor {
 
   hide(): void {
     this.teardownCropGuard();
+    // The editor instance is reused across edits, so leave it in a clean state.
+    // If a block is still selected in Crop mode when the NEXT scene loads,
+    // loadFromString destroys that block while a crop/timeline UI subscription is
+    // still reading it — CE.SDK then throws "Block N is unknown" (seen as the
+    // "Unknown Error" modal). Resetting here, while THIS scene's blocks still
+    // exist, flushes those subscriptions safely. save() already exits Crop before
+    // serializing; cancel did not, which is why the error only appeared after
+    // Cancel-then-edit-another.
+    const { engine } = this.cesdk;
+    engine.editor.setEditMode('Transform');
+    for (const id of engine.block.findAllSelected()) {
+      engine.block.setSelected(id, false);
+    }
     this.modal.classList.add('hidden');
   }
 
