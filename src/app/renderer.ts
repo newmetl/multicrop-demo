@@ -12,6 +12,7 @@ import { buildPresetScene } from './scene';
 import { computeFocalPoint, type FocalPoint } from './saliency';
 import type { Preset } from './presets';
 import type { CropResult } from './state';
+import { CESDK_LICENSE, CESDK_USER_ID } from './license';
 
 let enginePromise: Promise<CreativeEngine> | null = null;
 
@@ -19,7 +20,10 @@ let enginePromise: Promise<CreativeEngine> | null = null;
 export function getRenderEngine(): Promise<CreativeEngine> {
   if (enginePromise == null) {
     enginePromise = CreativeEngine.init({
-      baseURL: `https://cdn.img.ly/packages/imgly/cesdk-engine/${CreativeEngine.version}/assets`
+      baseURL: `https://cdn.img.ly/packages/imgly/cesdk-engine/${CreativeEngine.version}/assets`,
+      ...(CESDK_LICENSE
+        ? { license: CESDK_LICENSE, userId: CESDK_USER_ID }
+        : {})
     });
   }
   return enginePromise;

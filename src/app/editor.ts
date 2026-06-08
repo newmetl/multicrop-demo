@@ -13,6 +13,7 @@ import CreativeEditorSDK from '@cesdk/cesdk-js';
 import { PagePresetsAssetSource } from '@cesdk/cesdk-js/plugins';
 
 import { configureCropEditor } from './crop-editor-config';
+import { CESDK_LICENSE, CESDK_USER_ID } from './license';
 
 export interface CropEditorCallbacks {
   onSave: (sceneString: string) => void;
@@ -38,7 +39,8 @@ export class CropEditor {
     const instance = new CropEditor(modal, title);
 
     const cesdk = await CreativeEditorSDK.create('#cesdk_container', {
-      userId: 'multicrop-demo-user'
+      userId: CESDK_USER_ID,
+      ...(CESDK_LICENSE ? { license: CESDK_LICENSE } : {})
     });
     instance.cesdk = cesdk;
 
