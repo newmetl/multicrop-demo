@@ -40,6 +40,8 @@ export class CropEditor {
 
     const cesdk = await CreativeEditorSDK.create('#cesdk_container', {
       userId: CESDK_USER_ID,
+      // Light theme so the editor canvas matches the app's light shell.
+      theme: 'light',
       ...(CESDK_LICENSE ? { license: CESDK_LICENSE } : {})
     });
     instance.cesdk = cesdk;

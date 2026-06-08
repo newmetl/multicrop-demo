@@ -1,5 +1,5 @@
 /**
- * DOM rendering + event wiring for the app shell: the size checkbox list, the
+ * DOM rendering + event wiring for the app shell: the size preset cards, the
  * results gallery (hover → Edit), the generate spinner, and panel visibility.
  * Holds no engine logic — it calls back into the orchestrator (index.ts).
  */
@@ -14,7 +14,29 @@ import type { CropResult } from './state';
 
 const $ = (id: string) => document.getElementById(id)!;
 
-/** Render the grouped checkbox list. Returns nothing; read selection on demand. */
+// Checkmark glyph reused in selected size cards (stroke inherits white).
+const CHECK_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+// The card preview shows a proportional aspect-ratio rectangle: the preset's
+// longest side maps to PREVIEW_MAX px, the shorter side scales down, clamped to
+// PREVIEW_MIN so extreme ratios stay visible.
+const PREVIEW_MAX = 36;
+const PREVIEW_MIN = 8;
+
+function previewRect(width: number, height: number): { w: number; h: number } {
+  const longest = Math.max(width, height, 1);
+  return {
+    w: Math.max(PREVIEW_MIN, Math.round((width / longest) * PREVIEW_MAX)),
+    h: Math.max(PREVIEW_MIN, Math.round((height / longest) * PREVIEW_MAX))
+  };
+}
+
+/**
+ * Render the grouped preset cards. Each card is a <label> wrapping a
+ * visually-hidden checkbox (so `selectedPresetIds()` still works and the whole
+ * card toggles selection); the selected look is driven purely by CSS `:has()`.
+ */
 export function renderSizeList(byCategory: PresetsByCategory): void {
   const container = $('sizes');
   container.innerHTML = '';
@@ -22,25 +44,34 @@ export function renderSizeList(byCategory: PresetsByCategory): void {
     const presets = byCategory[category];
     if (presets == null || presets.length === 0) continue;
 
+    const group = document.createElement('div');
+    group.className = 'group';
+
     const heading = document.createElement('div');
     heading.className = 'group-title';
     // Brand glyph (inherits the heading's muted color via currentColor) + label.
     heading.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${CATEGORY_ICON[category]}</svg>`;
     heading.append(CATEGORY_LABEL[category]);
-    container.appendChild(heading);
+    group.appendChild(heading);
 
+    const cards = document.createElement('div');
+    cards.className = 'size-cards';
     for (const preset of presets) {
-      const label = document.createElement('label');
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.value = preset.id;
-      cb.dataset.presetCheckbox = 'true';
-      const span = document.createElement('span');
-      span.textContent = `${preset.label} (${preset.width}×${preset.height})`;
-      label.append(cb, span);
-      container.appendChild(label);
+      const rect = previewRect(preset.width, preset.height);
+      const card = document.createElement('label');
+      card.className = 'size-card';
+      card.innerHTML =
+        `<input class="sr-only" type="checkbox" data-preset-checkbox value="${preset.id}" />` +
+        `<span class="size-check">${CHECK_SVG}</span>` +
+        `<span class="size-prev"><span class="size-rect" style="width:${rect.w}px;height:${rect.h}px"></span></span>` +
+        `<span class="size-name">${preset.label}</span>` +
+        `<span class="size-dim">${preset.width} × ${preset.height}</span>`;
+      cards.appendChild(card);
     }
+    group.appendChild(cards);
+    container.appendChild(group);
   }
+  updateSelectedCount();
   $('sizes-panel').classList.remove('hidden');
 }
 
@@ -65,9 +96,20 @@ function refreshGenerate(): void {
   btn.disabled = isGenerating || !hasImage || selectedPresetIds().length === 0;
 }
 
-/** Re-evaluate Generate whenever the size selection changes. */
+/** Reflect the current selection count in the panel-head pill. */
+function updateSelectedCount(): void {
+  const n = selectedPresetIds().length;
+  const pill = $('sizes-count');
+  pill.textContent = `${n} selected`;
+  pill.classList.toggle('zero', n === 0);
+}
+
+/** Re-evaluate Generate + the count whenever the size selection changes. */
 export function wireSelectionToGenerate(): void {
-  $('sizes').addEventListener('change', refreshGenerate);
+  $('sizes').addEventListener('change', () => {
+    refreshGenerate();
+    updateSelectedCount();
+  });
 }
 
 export function setGenerating(generating: boolean): void {
@@ -88,8 +130,8 @@ export function setGenerateNote(text: string): void {
 // THUMB_MAX_SIDE (which fits inside the fixed-height stage), and every other
 // thumbnail is scaled by the same factor — so a 1920px crop shows a bigger
 // thumbnail than a 320px one, centered in the same-size box.
-const THUMB_MAX_SIDE = 180;
-const THUMB_MIN_SIDE = 24;
+const THUMB_MAX_SIDE = 104;
+const THUMB_MIN_SIDE = 22;
 
 /**
  * Render the gallery from results. The whole tile is the click-to-edit target
@@ -137,7 +179,7 @@ export function renderGallery(
 
     const caption = document.createElement('div');
     caption.className = 'caption';
-    caption.textContent = `${result.presetLabel} · ${result.width}×${result.height}`;
+    caption.innerHTML = `<b>${result.presetLabel}</b> · ${result.width}×${result.height}`;
 
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'delete-btn';
@@ -170,17 +212,35 @@ export function updateTile(result: CropResult): void {
   if (tile != null) (tile as HTMLImageElement).src = result.thumbnailUrl;
 }
 
+/** Human-readable byte size, e.g. 2.4 MB. */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} KB`;
+  const mb = kb / 1024;
+  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+}
+
 /**
- * Reflect a freshly uploaded image in the shell: filename, inline preview, and
- * (once a size is also picked) an enabled Generate button. `previewUrl` is the
- * session `state.sourceURI` blob URL — reused here, NOT a new object URL, so it
- * adds no object-URL lifecycle concerns (see CLAUDE.md §7).
+ * Reflect a freshly uploaded image in the shell: filename, dimensions + size,
+ * inline preview, relabeled button, and (once a size is also picked) an enabled
+ * Generate button. `previewUrl` is the session `state.sourceURI` blob URL —
+ * reused here, NOT a new object URL, so it adds no object-URL lifecycle concerns
+ * (see CLAUDE.md §7).
  */
-export function setUploadedImage(name: string, previewUrl: string): void {
+export function setUploadedImage(
+  name: string,
+  previewUrl: string,
+  width: number,
+  height: number,
+  sizeBytes: number
+): void {
   $('upload-name').textContent = name;
+  $('upload-sub').textContent = `${width} × ${height} · ${formatBytes(sizeBytes)}`;
   const preview = $('upload-preview') as HTMLImageElement;
   preview.src = previewUrl;
   preview.classList.remove('hidden');
+  ($('upload-btn') as HTMLButtonElement).textContent = 'Replace image';
   hasImage = true;
   refreshGenerate();
 }

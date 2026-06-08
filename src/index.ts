@@ -104,7 +104,7 @@ async function handleUpload(input: HTMLInputElement): Promise<void> {
   const { width, height } = await getImageSize(sourceURI);
   state.sourceWidth = width;
   state.sourceHeight = height;
-  setUploadedImage(file.name, sourceURI);
+  setUploadedImage(file.name, sourceURI, width, height, file.size);
 }
 
 async function handleGenerate(): Promise<void> {
