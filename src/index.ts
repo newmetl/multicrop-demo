@@ -109,6 +109,8 @@ async function handleUpload(input: HTMLInputElement): Promise<void> {
 
 async function handleGenerate(): Promise<void> {
   if (state.sourceURI == null) return;
+  // Clear any prior status note so it reflects only this click's outcome.
+  setGenerateNote('');
   // Additive: skip presets that already have a version, so existing versions
   // (and any edits the user made) are preserved. To recreate one, delete it
   // first, then Generate.
@@ -152,6 +154,9 @@ function handleDeleteAll(): void {
   }
   clearAllResults();
   clearResults();
+  // The "already generated" note would be misleading now that all versions are
+  // gone — clear it.
+  setGenerateNote('');
 }
 
 async function handleEdit(id: string): Promise<void> {
