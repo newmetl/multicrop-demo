@@ -155,8 +155,14 @@ in this project's `scene.ts`.
 
 ## Spec & plan (the full design history)
 
-- Spec: `docs/superpowers/specs/2026-06-03-multicrop-social-sizes-design.md`
-- Plan: `docs/superpowers/plans/2026-06-03-multicrop-social-sizes.md`
+- Initial build — Spec:
+  `docs/superpowers/specs/2026-06-03-multicrop-social-sizes-design.md`, Plan:
+  `docs/superpowers/plans/2026-06-03-multicrop-social-sizes.md`
+- Photo-editor-style crop rework — Spec:
+  `docs/superpowers/specs/2026-06-05-photo-editor-style-crop-design.md`, Plan:
+  `docs/superpowers/plans/2026-06-05-photo-editor-style-crop.md`
+- **Latest session handoff (start here): `docs/superpowers/HANDOFF.md`** — current
+  status, verification state, and how to run/verify.
 
 ## Git
 
