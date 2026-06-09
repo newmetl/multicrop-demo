@@ -13,56 +13,28 @@
 import type CreativeEditorSDK from '@cesdk/cesdk-js';
 
 export function configureCropEditor(cesdk: CreativeEditorSDK): void {
+  console.log('configureCropEditor()');
   const { engine } = cesdk;
 
-  // --- Features: crop only ---
-  cesdk.feature.enable(['ly.img.crop']);
-  // Disable everything that would add chrome or editing affordances.
-  cesdk.feature.disable([
-    // Enabling 'ly.img.crop' turns on its children, including auto-opening the
-    // crop inspector panel on crop mode. We want only the canvas + crop
-    // rectangle, so suppress the panel auto-open.
-    'ly.img.crop.panel.autoOpen',
-    'ly.img.text',
-    'ly.img.filter',
-    'ly.img.adjustment',
-    'ly.img.effect',
-    'ly.img.blur',
-    'ly.img.shadow',
-    'ly.img.delete',
-    'ly.img.duplicate',
-    'ly.img.group',
-    'ly.img.replace',
-    'ly.img.dock',
-    'ly.img.library.panel',
-    'ly.img.navigation.bar',
-    'ly.img.inspector.bar',
-    'ly.img.canvas.menu'
+  cesdk.feature.enable([
+    'ly.img.crop.scale'
   ]);
-
-  // --- UI: empty every region so only the canvas + crop gizmo remain ---
-  cesdk.ui.setComponentOrder({ in: 'ly.img.dock' }, []);
-  cesdk.ui.setComponentOrder({ in: 'ly.img.navigation.bar' }, []);
-  cesdk.ui.setComponentOrder({ in: 'ly.img.inspector.bar' }, []);
-  cesdk.ui.setComponentOrder({ in: 'ly.img.canvas.bar', at: 'top' }, []);
-  cesdk.ui.setComponentOrder({ in: 'ly.img.canvas.bar', at: 'bottom' }, []);
-  cesdk.ui.setComponentOrder(
-    { in: 'ly.img.canvas.menu', when: { editMode: 'Crop' } },
-    []
-  );
-
-  // --- Resizable, aspect-locked crop frame ---
-  // Show the crop resize handles. The frame stays at the preset aspect ratio
-  // because the block has `setCropAspectRatioLocked(true)` (set in scene.ts) —
-  // the engine keeps the ratio during handle resize. Coverage is clamped by
-  // crop mode, so the image can never be resized/moved to expose emptiness.
-  engine.editor.setSettingBool('controlGizmo/showCropHandles', true);
-  // Keep scale handles so users can also scale the image within the frame.
-  engine.editor.setSettingBool('controlGizmo/showCropScaleHandles', true);
-
+  
   // --- Page/crop visuals ---
-  engine.editor.setSetting('page/dimOutOfPageAreas', true);
-  engine.editor.setSetting('page/highlightWhenCropping', true);
+  // The page IS the crop. allowCropInteraction lets the user drag the image
+  // under the centered page frame while the engine keeps it covered — the
+  // photo-editor starter kit's crop behavior. Without it the image can't be
+  // panned in crop mode. (This setting was the key missing enabler.)
+  engine.editor.setSetting('page/allowCropInteraction', true);
+  engine.editor.setSetting('page/allowResizeInteraction', true);
+  engine.editor.setSetting('page/restrictResizeInteractionToFixedAspectRatio', true);
+
   engine.editor.setSetting('page/title/show', false);
+
+  // Interaction
   engine.editor.setSetting('doubleClickToCropEnabled', false);
+
+  // Supporting page UX (not named "crop" but part of the experience)
+  engine.editor.setSetting('page/dimOutOfPageAreas', true);
+  engine.editor.setSetting('page/selectWhenNoBlocksSelected', true);
 }
