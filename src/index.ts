@@ -40,7 +40,6 @@ let presetIndex: Map<string, Preset> = new Map();
 
 /** Log an error and surface it to the user, so failures aren't silent. */
 function notifyError(context: string, error: unknown): void {
-  // eslint-disable-next-line no-console
   console.error(`${context}:`, error);
   window.alert(`${context}. See the console for details.`);
 }
@@ -240,7 +239,6 @@ function getImageSize(uri: string): Promise<{ width: number; height: number }> {
 }
 
 main().catch((error) => {
-  // eslint-disable-next-line no-console
   console.error('MultiCrop failed to start:', error);
   // Don't leave the startup spinner spinning forever — show the failure there.
   const overlay = document.getElementById('loading-overlay');

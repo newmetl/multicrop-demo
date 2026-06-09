@@ -25,10 +25,21 @@
  * @see https://www.npmjs.com/package/@imgly/background-removal
  */
 
-import type CreativeEditorSDK from '@cesdk/cesdk-js';
 import { removeBackground } from '@imgly/background-removal';
 
-type Engine = CreativeEditorSDK['engine'];
+/**
+ * The minimal slice of the CE.SDK engine this module needs: reading the bytes
+ * back out of a `buffer://` URI. Both the headless `@cesdk/engine` and the
+ * editor's `cesdk.engine` satisfy it structurally, so saliency runs against
+ * either without a cast.
+ */
+type Engine = {
+  editor: {
+    getMimeType(uri: string): Promise<string>;
+    getBufferLength(uri: string): number;
+    getBufferData(uri: string, offset: number, length: number): Uint8Array;
+  };
+};
 
 export interface FocalPoint {
   /**
@@ -58,7 +69,6 @@ export function computeFocalPoint(
   if (cached != null) return cached;
 
   const pending = runInference(imageUri, engine).catch((error) => {
-    // eslint-disable-next-line no-console
     console.error('Multicrop saliency: inference failed', error);
     return null;
   });

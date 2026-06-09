@@ -190,10 +190,22 @@ export function renderGallery(
   const scale = THUMB_MAX_SIDE / maxSide;
 
   for (const result of results) {
+    // The whole tile edits its crop. It's a <div> (not a <button>) because it
+    // contains the delete <button>, and buttons can't nest — so give it explicit
+    // button semantics and keyboard support instead.
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.dataset.resultId = result.id;
+    tile.setAttribute('role', 'button');
+    tile.tabIndex = 0;
+    tile.setAttribute('aria-label', `Edit ${result.presetLabel} crop`);
     tile.addEventListener('click', () => onEdit(result.id));
+    tile.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onEdit(result.id);
+      }
+    });
 
     // Fixed-size stage; the thumbnail is scaled to its relative size + centered.
     const stage = document.createElement('div');
@@ -245,10 +257,10 @@ export function removeTile(id: string): void {
 
 /** Update a single tile's image after a re-render (no full re-render). */
 export function updateTile(result: CropResult): void {
-  const tile = document.querySelector<HTMLElement>(
+  const img = document.querySelector<HTMLImageElement>(
     `.tile[data-result-id="${result.id}"] img`
   );
-  if (tile != null) (tile as HTMLImageElement).src = result.thumbnailUrl;
+  if (img != null) img.src = result.thumbnailUrl;
 }
 
 /** Human-readable byte size, e.g. 2.4 MB. */

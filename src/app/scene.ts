@@ -55,8 +55,6 @@ export async function buildPresetScene(
   engine.block.setString(fill, 'fill/image/imageFileURI', imageURI);
   engine.block.setFill(page, fill);
 
-  // engine.block.setEnum(page, 'contentFill/mode', 'Crop');
-
   await frameFocalRegion(engine, page, focalPoint);
 
   return engine.scene.saveToString();

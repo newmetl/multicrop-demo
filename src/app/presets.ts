@@ -98,14 +98,23 @@ export async function loadSocialPresets(
 ): Promise<PresetsByCategory> {
   const result: PresetsByCategory = {};
 
-  let response;
+  let response: Awaited<
+    ReturnType<typeof cesdk.engine.asset.findAssets>
+  >;
   try {
     response = await cesdk.engine.asset.findAssets(PAGE_PRESETS_SOURCE, {
       page: 0,
       perPage: 999
     });
-  } catch {
-    return result; // source not registered
+  } catch (error) {
+    // Most likely the page-presets asset source isn't registered yet; surface
+    // anything else (a network/permission failure) instead of silently
+    // returning an empty catalog.
+    console.warn(
+      `Could not read presets from "${PAGE_PRESETS_SOURCE}"; returning none.`,
+      error
+    );
+    return result;
   }
 
   for (const asset of response.assets) {

@@ -110,6 +110,9 @@
       .gallery { display: grid; grid-template-columns: repeat(auto-fill, 150px); justify-content: start; gap: 14px; align-items: start; }
       .tile { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; cursor: pointer; transition: box-shadow 0.12s, transform 0.12s; }
       .tile:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(20, 24, 40, 0.10); }
+      .tile:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+      /* Keyboard focus reveals the same Edit/Delete affordances as hover. */
+      .tile:focus-visible .edit-hint, .tile:focus-within .delete-btn { opacity: 1; }
       .tile .stage { position: relative; height: 120px; display: flex; align-items: center; justify-content: center; background: var(--stage); }
       .tile img { display: block; object-fit: contain; border-radius: 1px; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15); }
       .tile .caption { padding: 8px 10px; font-size: 11px; line-height: 1.35; color: var(--muted); border-top: 1px solid var(--border); overflow-wrap: break-word; }

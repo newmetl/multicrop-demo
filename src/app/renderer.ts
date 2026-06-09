@@ -83,7 +83,7 @@ export function renderScene(
 export async function focalPointFor(imageURI: string): Promise<FocalPoint | null> {
   const engine = await getRenderEngine();
   // saliency only uses the engine for buffer:// URIs; object URLs pass through.
-  return computeFocalPoint(imageURI, engine as never);
+  return computeFocalPoint(imageURI, engine);
 }
 
 /**

@@ -3,18 +3,21 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2020,
-    sourceType: 'module',
-    project: './tsconfig.json'
+    sourceType: 'module'
   },
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
-  plugins: ['@typescript-eslint', 'deprecation'],
+  plugins: ['@typescript-eslint'],
   rules: {
-    // Warn on deprecated APIs (not error)
-    'deprecation/deprecation': 'warn',
-    // Allow console statements in examples
-    'no-console': 'off',
-    // Allow any type in examples
-    '@typescript-eslint/no-explicit-any': 'off'
+    // TypeScript already resolves identifiers; ESLint's no-undef misfires on
+    // types and ambient globals, so defer to the compiler (the typescript-eslint
+    // recommended pattern).
+    'no-undef': 'off',
+    // Surface stray debug logging, but allow intentional warn/error reporting.
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
+    '@typescript-eslint/no-explicit-any': 'warn',
+    // Allow deliberately-unused params when prefixed with `_` (e.g. scene.ts's
+    // signature-stability args).
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
   },
   env: {
     browser: true,
@@ -23,11 +26,9 @@ module.exports = {
   },
   ignorePatterns: [
     'dist/**',
-    'coverage/**',
     'node_modules/**',
     '*.config.js',
     '*.config.ts',
-    'scripts/**',
     '.eslintrc.js'
   ]
 };

@@ -73,7 +73,6 @@ export class CropEditor {
    * block, enters Crop mode, and fits the page to the viewport.
    */
   async open(sceneString: string, label: string): Promise<void> {
-    console.log('open()');
     const { engine } = this.cesdk;
     this.title.textContent = `Edit crop — ${label}`;
     this.modal.classList.remove('hidden');

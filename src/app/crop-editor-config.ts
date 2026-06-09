@@ -13,7 +13,6 @@
 import type CreativeEditorSDK from '@cesdk/cesdk-js';
 
 export function configureCropEditor(cesdk: CreativeEditorSDK): void {
-  console.log('configureCropEditor()');
   const { engine } = cesdk;
 
   cesdk.feature.enable([
