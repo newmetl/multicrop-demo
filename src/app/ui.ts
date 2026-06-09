@@ -72,7 +72,9 @@ export function renderSizeList(byCategory: PresetsByCategory): void {
     container.appendChild(group);
   }
   updateSelectedCount();
-  $('sizes-panel').classList.remove('hidden');
+  // The panel stays hidden until an image is uploaded — the upload step is the
+  // app's entry point, and `setUploadedImage()` reveals this panel. Presets are
+  // built here (during startup) so the reveal is instant, no loading needed.
 }
 
 /** Selected preset ids, in DOM order. */
@@ -96,20 +98,33 @@ function refreshGenerate(): void {
   btn.disabled = isGenerating || !hasImage || selectedPresetIds().length === 0;
 }
 
-/** Reflect the current selection count in the panel-head pill. */
+/** Reflect the current selection count in the panel-head pill + Clear button. */
 function updateSelectedCount(): void {
   const n = selectedPresetIds().length;
   const pill = $('sizes-count');
   pill.textContent = `${n} selected`;
   pill.classList.toggle('zero', n === 0);
+  ($('clear-sizes-btn') as HTMLButtonElement).disabled = n === 0;
 }
 
-/** Re-evaluate Generate + the count whenever the size selection changes. */
+/** Uncheck every selected preset, then refresh the dependent UI. */
+function clearSelection(): void {
+  document
+    .querySelectorAll<HTMLInputElement>('input[data-preset-checkbox]:checked')
+    .forEach((cb) => {
+      cb.checked = false;
+    });
+  refreshGenerate();
+  updateSelectedCount();
+}
+
+/** Wire the size controls: re-evaluate Generate + count on change, and Clear. */
 export function wireSelectionToGenerate(): void {
   $('sizes').addEventListener('change', () => {
     refreshGenerate();
     updateSelectedCount();
   });
+  $('clear-sizes-btn').addEventListener('click', clearSelection);
 }
 
 export function setGenerating(generating: boolean): void {
@@ -132,6 +147,29 @@ export function setGenerateNote(text: string): void {
 // thumbnail than a 320px one, centered in the same-size box.
 const THUMB_MAX_SIDE = 104;
 const THUMB_MIN_SIDE = 22;
+
+/**
+ * Thumbnail pixel size for a crop, scaled by the shared batch factor and always
+ * preserving aspect ratio. The visibility floor (THUMB_MIN_SIDE) is applied to
+ * the LONGER side only: clamping each axis independently distorts extreme ratios
+ * (a 1128×191 banner would be forced from ~56×9 to 56×22, skewing it). Tiny
+ * crops are scaled up uniformly so their longest side stays visible.
+ */
+function thumbSize(
+  width: number,
+  height: number,
+  scale: number
+): { w: number; h: number } {
+  let w = width * scale;
+  let h = height * scale;
+  const longer = Math.max(w, h);
+  if (longer < THUMB_MIN_SIDE) {
+    const up = THUMB_MIN_SIDE / longer;
+    w *= up;
+    h *= up;
+  }
+  return { w: Math.max(1, Math.round(w)), h: Math.max(1, Math.round(h)) };
+}
 
 /**
  * Render the gallery from results. The whole tile is the click-to-edit target
@@ -161,11 +199,12 @@ export function renderGallery(
     const stage = document.createElement('div');
     stage.className = 'stage';
 
+    const { w: thumbW, h: thumbH } = thumbSize(result.width, result.height, scale);
     const img = document.createElement('img');
     img.src = result.thumbnailUrl;
     img.alt = result.presetLabel;
-    img.style.width = `${Math.max(THUMB_MIN_SIDE, Math.round(result.width * scale))}px`;
-    img.style.height = `${Math.max(THUMB_MIN_SIDE, Math.round(result.height * scale))}px`;
+    img.style.width = `${thumbW}px`;
+    img.style.height = `${thumbH}px`;
     stage.appendChild(img);
 
     // Centered hover affordance (a clear "this box is clickable" cue). No own
@@ -244,6 +283,10 @@ export function setUploadedImage(
   // The sample shortcut is a get-started affordance; once an image is loaded the
   // "Replace image" button covers swapping it out.
   $('sample-btn').classList.add('hidden');
+  // Reveal the size-presets step now that there's an image to crop — this guides
+  // the user from upload → choose sizes. Idempotent on re-upload. Presets are
+  // already rendered (built at startup), so the reveal is instant.
+  $('sizes-panel').classList.remove('hidden');
   hasImage = true;
   refreshGenerate();
 }

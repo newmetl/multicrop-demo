@@ -83,10 +83,22 @@
       /* Horizontal padding so a selected card's ring/shadow isn't clipped by the
          scroll overflow; negative margin cancels it so cards still align to the
          panel edge and four fit per row. */
-      #sizes { max-height: 432px; overflow-y: auto; overflow-x: hidden; margin: 0 -7px; padding: 2px 7px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
-      #sizes::-webkit-scrollbar { width: 10px; }
-      #sizes::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 20px; border: 2px solid var(--surface); }
-      #sizes::-webkit-scrollbar-track { background: transparent; }
+      /* Scrollbar: when the catalog overflows, keep a clearly-visible bar (filled
+         track + mid-gray thumb) so the user can tell more presets are below — not
+         a faint, auto-hiding overlay that reads as "no scroll". `auto` keeps it
+         absent when everything already fits.
+         We intentionally style ONLY the `::-webkit-scrollbar` pseudo-elements and
+         do NOT set the standard `scrollbar-width`/`scrollbar-color`: in Chrome
+         121+ a non-`auto` value of those makes the engine ignore the pseudo-
+         elements and fall back to a thin auto-hiding overlay scrollbar (macOS).
+         The pseudo-elements alone yield a non-overlay, always-visible bar.
+         Firefox (which ignores the pseudo-elements) shows its default scrollbar,
+         which is already always-visible-on-overflow on desktop. */
+      #sizes { max-height: 432px; overflow-y: auto; overflow-x: hidden; margin: 0 -7px; padding: 2px 7px; }
+      #sizes::-webkit-scrollbar { width: 12px; }
+      #sizes::-webkit-scrollbar-thumb { background: #aab1bd; border-radius: 20px; border: 3px solid var(--surface-2); }
+      #sizes::-webkit-scrollbar-thumb:hover { background: #939baa; }
+      #sizes::-webkit-scrollbar-track { background: var(--surface-2); border-radius: 20px; }
 
       /* Generate */
       .generate-row { display: flex; align-items: center; gap: 12px; }
@@ -98,7 +110,7 @@
       .tile { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; cursor: pointer; transition: box-shadow 0.12s, transform 0.12s; }
       .tile:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(20, 24, 40, 0.10); }
       .tile .stage { position: relative; height: 120px; display: flex; align-items: center; justify-content: center; background: var(--stage); }
-      .tile img { display: block; border-radius: 1px; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15); }
+      .tile img { display: block; object-fit: contain; border-radius: 1px; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15); }
       .tile .caption { padding: 8px 10px; font-size: 11px; line-height: 1.35; color: var(--muted); border-top: 1px solid var(--border); overflow-wrap: break-word; }
       .tile .caption b { color: var(--text); font-weight: 600; }
       .tile .edit-hint { position: absolute; inset: 0 0 auto 0; height: 120px; display: flex; align-items: center; justify-content: center; background: rgba(26, 29, 36, 0.30); opacity: 0; transition: opacity 0.12s; }
@@ -164,6 +176,8 @@
         <div class="panel-head">
           <h2>Choose sizes</h2>
           <span id="sizes-count" class="count-pill zero">0 selected</span>
+          <span class="grow"></span>
+          <button id="clear-sizes-btn" class="btn btn-subtle" disabled>Clear selection</button>
         </div>
         <div id="sizes"></div>
         <div class="generate-row" style="margin-top: 16px;">
