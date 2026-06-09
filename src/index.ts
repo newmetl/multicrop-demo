@@ -64,7 +64,12 @@ async function main(): Promise<void> {
 
   const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement;
   const fileInput = document.getElementById('file-input') as HTMLInputElement;
-  uploadBtn.addEventListener('click', () => fileInput.click());
+  uploadBtn.addEventListener('click', () => {
+    // Confirm BEFORE opening the file browser, so the "remove current versions"
+    // warning shows on click — not after the user has already picked a file.
+    if (!confirmReplace()) return;
+    fileInput.click();
+  });
   fileInput.addEventListener('change', () => {
     handleUpload(fileInput).catch((e) => notifyError('Upload failed', e));
   });
@@ -119,10 +124,8 @@ async function loadImageFile(file: File): Promise<void> {
 async function handleUpload(input: HTMLInputElement): Promise<void> {
   const file = input.files?.[0];
   if (file == null) return;
-  if (!confirmReplace()) {
-    input.value = '';
-    return;
-  }
+  // The replace confirmation already ran on the button click (before the file
+  // browser opened), so just load the chosen file here.
   await loadImageFile(file);
   // Reset so re-selecting the same file fires `change` again.
   input.value = '';
