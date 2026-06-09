@@ -1,11 +1,11 @@
 /**
- * Builds a per-preset "photo" scene whose page is sized to the SOURCE IMAGE and
- * that holds a single image block whose FRAME IS THE CROP RECTANGLE — the
- * largest preset-aspect rectangle that fits the image, positioned at the
- * saliency focal point. The image fill is aligned 1:1 to the page, so the whole
- * image is visible (the area outside the crop rectangle shows as dimmed overflow
- * in crop mode), exactly like CE.SDK's native crop tool. The renderer exports
- * this block at the preset's exact pixels (see renderer.ts).
+ * Builds a per-preset scene the way the photo-editor starter kit does: the PAGE
+ * itself is the crop. The page is sized to the preset, and the source image is
+ * the page's content fill, cropped (Cover scale + a focal-point translation) so
+ * the salient region is framed. Because the page IS the crop frame, CE.SDK's
+ * native crop tool behaves correctly — the frame is centered, the image always
+ * covers it, and there is no larger page to expose. The renderer exports the
+ * page at the preset's exact pixels (see renderer.ts).
  *
  * The image is referenced by an object URL (blob:) that both the headless
  * renderer and the editor resolve within the same browser document.
@@ -21,54 +21,20 @@ interface PresetSize {
   height: number;
 }
 
-interface CropRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 /**
- * The largest preset-aspect rectangle that fits inside the image, positioned so
- * its centre sits on the focal point (clamped to stay fully inside the image).
- * One dimension always equals the full image dimension, so covering it leaves
- * the image at ~1:1 scale — i.e. the whole image is shown, the rectangle is a
- * sub-window, and the remainder is overflow.
- */
-function computeCropRect(
-  imageW: number,
-  imageH: number,
-  preset: PresetSize,
-  focal: FocalPoint | null
-): CropRect {
-  const presetAspect = preset.width / preset.height;
-  const imageAspect = imageW / imageH;
-  let w: number;
-  let h: number;
-  if (imageAspect > presetAspect) {
-    h = imageH;
-    w = imageH * presetAspect;
-  } else {
-    w = imageW;
-    h = imageW / presetAspect;
-  }
-  const fx = focal?.x ?? 0.5;
-  const fy = focal?.y ?? 0.5;
-  const x = Math.min(Math.max(fx * imageW - w / 2, 0), imageW - w);
-  const y = Math.min(Math.max(fy * imageH - h / 2, 0), imageH - h);
-  return { x, y, w, h };
-}
-
-/**
- * Build the scene in `engine` and return its serialized string.
+ * Build the scene in `engine` and return its serialized string. The image's
+ * pixel dimensions aren't needed: the page is the preset size and the focal
+ * framing uses the engine's normalized Cover scales (read after the image
+ * decodes), so `_imageWidth`/`_imageHeight` are accepted only to keep the
+ * renderer's call signature stable.
  *
  * @returns the serialized scene string for the built scene.
  */
 export async function buildPresetScene(
   engine: CreativeEngine,
   imageURI: string,
-  imageWidth: number,
-  imageHeight: number,
+  _imageWidth: number,
+  _imageHeight: number,
   preset: PresetSize,
   focalPoint: FocalPoint | null
 ): Promise<string> {
@@ -77,63 +43,41 @@ export async function buildPresetScene(
   // the scene block, which `create()` returns.
   const scene = engine.scene.create();
 
-  // Page = the whole source image, so the editor shows the full image with the
-  // crop block as a sub-region. Not clipped: the crop overlay shows fill freely.
+  // The PAGE is the crop: sized to the preset output, with the source image as
+  // its content fill. The crop frame == the page, so it stays centered and the
+  // image can never slide off to expose emptiness (unlike a sub-window block).
   const page = engine.block.create('//ly.img.ubq/page');
-  engine.block.setWidth(page, imageWidth);
-  engine.block.setHeight(page, imageHeight);
-  engine.block.setClipped(page, false);
+  engine.block.setWidth(page, preset.width);
+  engine.block.setHeight(page, preset.height);
   engine.block.appendChild(scene, page);
-
-  const crop = computeCropRect(imageWidth, imageHeight, preset, focalPoint);
-
-  const imageBlock = engine.block.create('//ly.img.ubq/graphic');
-  engine.block.setShape(
-    imageBlock,
-    engine.block.createShape('//ly.img.ubq/shape/rect')
-  );
-  engine.block.setKind(imageBlock, 'image');
 
   const fill = engine.block.createFill('//ly.img.ubq/fill/image');
   engine.block.setString(fill, 'fill/image/imageFileURI', imageURI);
-  engine.block.setFill(imageBlock, fill);
+  engine.block.setFill(page, fill);
 
-  // The block's FRAME is the crop rectangle (a sub-region of the page).
-  engine.block.setWidth(imageBlock, crop.w);
-  engine.block.setHeight(imageBlock, crop.h);
-  engine.block.setPositionX(imageBlock, crop.x);
-  engine.block.setPositionY(imageBlock, crop.y);
-  engine.block.appendChild(page, imageBlock);
+  // engine.block.setEnum(page, 'contentFill/mode', 'Crop');
 
-  await coverCropRectToPage(engine, imageBlock, crop, imageWidth, imageHeight);
-
-  // Lock the crop ratio to the preset: crop-handle resizes keep this ratio.
-  engine.block.setCropAspectRatioLocked(imageBlock, true);
+  await frameFocalRegion(engine, page, focalPoint);
 
   return engine.scene.saveToString();
 }
 
 /**
- * Align the image fill so the source image maps 1:1 onto the page while the
- * block's frame (the crop rectangle) windows the focal sub-region.
+ * Crop the page's image fill so the salient region is framed. Cover gives
+ * CE.SDK's normalized crop scales (non-overflow axis = 1, overflow axis =
+ * imageDim/pageDim); switching to Crop preserves them, then the translation
+ * frames the focal point:
  *
- * Cover gives CE.SDK's normalized crop scales (non-overflow axis = 1, overflow
- * axis = imageDim/cropDim). Switching to Crop preserves them; we then set the
- * translation so the visible window starts at the crop rectangle's offset:
+ *   t = -(scale - 1) * focalFraction      (focalFraction in [0,1])
  *
- *   t = -(scale - 1) * (cropOffset / overflow)
- *
- * This is the proven `-(scale-1)*focal` form with the focal fraction replaced by
- * the clamped crop offset, which keeps the image edge-aligned to the page even
- * when the focal point is near an edge (so the whole image stays visible and the
- * crop is always fully covered).
+ * the proven `-(scale-1)*focal` form. A focal fraction in [0,1] keeps the image
+ * fully covering the page on each axis, so the crop is always covered (on the
+ * non-overflow axis scale == 1, so t == 0).
  */
-async function coverCropRectToPage(
+async function frameFocalRegion(
   engine: CreativeEngine,
   block: number,
-  crop: CropRect,
-  imageW: number,
-  imageH: number
+  focal: FocalPoint | null
 ): Promise<void> {
   // Cover's scale needs the image's natural size decoded first.
   await engine.block.forceLoadResources([block]);
@@ -143,10 +87,8 @@ async function coverCropRectToPage(
   const sy = engine.block.getCropScaleY(block);
 
   engine.block.setContentFillMode(block, 'Crop');
-  const overflowX = imageW - crop.w;
-  const overflowY = imageH - crop.h;
-  const tx = overflowX > 0 ? -(sx - 1) * (crop.x / overflowX) : 0;
-  const ty = overflowY > 0 ? -(sy - 1) * (crop.y / overflowY) : 0;
-  engine.block.setCropTranslationX(block, tx);
-  engine.block.setCropTranslationY(block, ty);
+  const fx = focal?.x ?? 0.5;
+  const fy = focal?.y ?? 0.5;
+  engine.block.setCropTranslationX(block, -(sx - 1) * fx);
+  engine.block.setCropTranslationY(block, -(sy - 1) * fy);
 }

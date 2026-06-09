@@ -48,22 +48,19 @@ function withEngine<T>(critical: () => Promise<T>): Promise<T> {
   return run;
 }
 
-/** Find the croppable image block (the crop rectangle) in the loaded scene. */
+/** The crop is the page itself (its image fill is cropped to the preset). */
 function findCropBlock(engine: CreativeEngine): number {
   const page = engine.block.findByType('page')[0];
   if (page == null) throw new Error('renderScene: scene has no page');
-  const block = engine.block
-    .getChildren(page)
-    .find((id) => engine.block.supportsCrop(id));
-  if (block == null) throw new Error('renderScene: scene has no croppable block');
-  return block;
+  return page;
 }
 
 /**
- * Render a serialized scene's crop block to a PNG Blob at the preset's exact
- * pixel size. The crop block's frame is the crop rectangle (a sub-region of an
- * image-sized page); `targetWidth/targetHeight` scale that region to the preset
- * dimensions while preserving aspect. Serialized against all other engine ops.
+ * Render a serialized scene's page to a PNG Blob at the preset's exact pixel
+ * size. The page IS the crop (preset-sized, image as its cropped content fill);
+ * `targetWidth/targetHeight` give the exact output pixels (a non-distorting
+ * resize, since the page is already the preset aspect). Serialized against all
+ * other engine ops.
  */
 export function renderScene(
   sceneString: string,
